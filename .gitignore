@@ -1,0 +1,10 @@
+# The engine carries NO data — interventions, tracker, briefs, and evidence all live in
+# the per-user private data repo ($AGENT_MATURITY_DATA_DIR), never here. Guard against
+# accidental commits if someone runs the tools from inside this checkout.
+interventions.jsonl
+tracker.md
+briefs/
+evidence/
+scope-gate.log
+*.local
+.DS_Store
