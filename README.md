@@ -42,25 +42,13 @@ Two env vars are the whole config surface: **`AGENT_MATURITY_HOME`** (this repo,
 
 ## Quickstart
 
-First, create your own PRIVATE data repo (once) — the engine never stores data:
+One line (`gh` authenticated). `bootstrap.sh` clones-or-updates the engine, installs it, and
+auto-creates your PRIVATE data repo if it doesn't exist yet:
 
 ```bash
-gh repo create <you>/agent-maturity-data --private
-```
-
-Then bootstrap the engine. `bootstrap.sh` clones-or-updates and installs in one shot:
-
-```bash
-# Public repo / marketplace — true one-liner:
 curl -fsSL https://raw.githubusercontent.com/YanxiChen-gh/agent-maturity/main/bootstrap.sh \
   | bash -s -- --data-repo <you>/agent-maturity-data
-
-# Private repo (needs `gh` authenticated) — clone once, then bootstrap installs:
-gh repo clone YanxiChen-gh/agent-maturity ~/agent-maturity
-~/agent-maturity/bootstrap.sh --data-repo <you>/agent-maturity-data
 ```
-
-> While this repo is private, the `curl | bash` form needs a token — use the `gh repo clone` path. Once it's public (or shipped as a Claude Code marketplace plugin), the one-liner works as-is.
 
 Then open a new shell (or `source ~/.agent-maturity.env`) and:
 
@@ -69,7 +57,20 @@ Then open a new shell (or `source ~/.agent-maturity.env`) and:
 li clarification "use the resolver, not REST" wrong-approach
 ```
 
-`install.sh` (run by `bootstrap.sh`, or directly) symlinks the skills into `~/.claude/skills`, writes `~/.agent-maturity.env`, and registers the scope-gate hooks. It's idempotent; `--dry-run` shows what it would do; `--no-hooks` skips hook registration.
+`install.sh` (run by `bootstrap.sh`, or directly) symlinks the skills into `~/.claude/skills`,
+writes `~/.agent-maturity.env`, registers the scope-gate hooks, and ensures your data repo
+exists. It's idempotent; `--dry-run` shows what it would do; `--no-hooks` skips hooks.
+
+### Put it in your dotfiles
+
+Drop this one line into your dotfiles' install/setup script — same line for everyone, the repo
+does all the heavy lifting (re-runs just pull + reinstall):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/YanxiChen-gh/agent-maturity/main/bootstrap.sh \
+  | bash -s -- --data-repo "<you>/agent-maturity-data" \
+      --name "$(git config --global user.name)" --email "$(git config --global user.email)"
+```
 
 ## Notes & limitations
 

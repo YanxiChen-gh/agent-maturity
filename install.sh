@@ -81,6 +81,22 @@ else
 fi
 echo "✓ config written → $ENV_FILE"
 
+# 2b. Ensure the per-user PRIVATE data repo exists, so the lazy clone on first skill use just
+# works (one fewer manual step). Best-effort: needs gh authed; never fails the install.
+if [ -n "$DATA_REPO" ] && [ "$DRY" != 1 ]; then
+  if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+    if gh repo view "$DATA_REPO" >/dev/null 2>&1; then
+      echo "  (data repo $DATA_REPO already exists)"
+    elif gh repo create "$DATA_REPO" --private >/dev/null 2>&1; then
+      echo "✓ created private data repo $DATA_REPO"
+    else
+      echo "  (couldn't auto-create $DATA_REPO — create it yourself: gh repo create $DATA_REPO --private)"
+    fi
+  else
+    echo "  (gh not authed — create your data repo later: gh repo create $DATA_REPO --private)"
+  fi
+fi
+
 src_line='[ -f "$HOME/.agent-maturity.env" ] && . "$HOME/.agent-maturity.env"'
 sourced_any=0
 for rc in "$HOME/.zshrc" "$HOME/.bashrc"; do
