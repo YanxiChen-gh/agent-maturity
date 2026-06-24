@@ -42,20 +42,34 @@ Two env vars are the whole config surface: **`AGENT_MATURITY_HOME`** (this repo,
 
 ## Quickstart
 
+First, create your own PRIVATE data repo (once) — the engine never stores data:
+
 ```bash
-git clone <this repo> ~/agent-maturity
-cd ~/agent-maturity
-
-# Create a private data repo (once), then install:
 gh repo create <you>/agent-maturity-data --private
-./install.sh --data-repo <you>/agent-maturity-data
+```
 
-# new shell (or: source ~/.agent-maturity.env), then:
+Then bootstrap the engine. `bootstrap.sh` clones-or-updates and installs in one shot:
+
+```bash
+# Public repo / marketplace — true one-liner:
+curl -fsSL https://raw.githubusercontent.com/YanxiChen-gh/agent-maturity/main/bootstrap.sh \
+  | bash -s -- --data-repo <you>/agent-maturity-data
+
+# Private repo (needs `gh` authenticated) — clone once, then bootstrap installs:
+gh repo clone YanxiChen-gh/agent-maturity ~/agent-maturity
+~/agent-maturity/bootstrap.sh --data-repo <you>/agent-maturity-data
+```
+
+> While this repo is private, the `curl | bash` form needs a token — use the `gh repo clone` path. Once it's public (or shipped as a Claude Code marketplace plugin), the one-liner works as-is.
+
+Then open a new shell (or `source ~/.agent-maturity.env`) and:
+
+```bash
 /maturity-review            # scores your current state, sets a baseline
 li clarification "use the resolver, not REST" wrong-approach
 ```
 
-`install.sh` symlinks the skills into `~/.claude/skills`, writes `~/.agent-maturity.env`, and registers the scope-gate hooks. It's idempotent; `--dry-run` shows what it would do; `--no-hooks` skips hook registration.
+`install.sh` (run by `bootstrap.sh`, or directly) symlinks the skills into `~/.claude/skills`, writes `~/.agent-maturity.env`, and registers the scope-gate hooks. It's idempotent; `--dry-run` shows what it would do; `--no-hooks` skips hook registration.
 
 ## Notes & limitations
 
