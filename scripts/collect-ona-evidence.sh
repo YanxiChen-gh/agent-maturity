@@ -15,7 +15,7 @@
 #   collect-ona-evidence.sh [--include-stopped] [--repo <checkoutLocation>] [--out <dir>] [--all]
 #     --include-stopped   also pull from STOPPED envs (connecting STARTS them — slow & costs
 #                         compute). Default: running envs only.
-#     --repo <name>       only envs whose git checkoutLocation matches (e.g. "obsidian").
+#     --repo <name>       only envs whose git checkoutLocation matches (e.g. "my-monorepo").
 #     --out <dir>         evidence dir (default $AGENT_MATURITY_DATA_DIR/evidence).
 #     --all               include envs created by others you can see (default: only yours).
 #
