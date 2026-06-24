@@ -1,6 +1,6 @@
 # agent-maturity
 
-> **Alpha / WIP.** Interfaces and the rubric will change. Used daily by the author; sharing early to gather interest and feedback.
+> **Alpha / WIP — personal experiment.** A personal side project shared early to gather interest and feedback. Interfaces and the rubric will change without notice. Provided **as-is, with no warranty and no support or maintenance commitment** (see [LICENSE](LICENSE), MIT). Not an official tool of any employer; use at your own discretion.
 
 A personal, evidence-based system for answering one question: **am I spending less human attention per change my coding agents ship — and what's the cheapest next move that would help?**
 
