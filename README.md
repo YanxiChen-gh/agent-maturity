@@ -22,16 +22,17 @@ Attention spent on agent work goes to three places. Each is scored L1→L5 and m
 
 1. **`scope-gate`** (a skill + two hooks) forces a short scoping brief before code on non-trivial tasks — restate the task, acceptance checks, batch questions up front. Each brief is also a measurement artifact.
 2. **`li`** logs an intervention in the moment: `li correction "handed off without running it" verify-fail`.
-3. **`/harvest-interventions`** mines transcripts + git + PRs to reconstruct interventions you didn't log by hand, and proposes entries to confirm.
-4. **`/maturity-review`** scores the three dimensions from the log, computes the north star + trend, runs an ablation check on the last change, and recommends exactly one next move.
+3. **`capture`** flags a whole conversation as a *subjective* signal — `capture heavy "lots of back-and-forth"` or `capture light "agent one-shot it"`. Kept on a separate track (`captures.jsonl`), reported by review but never counted; the gap between "felt heavy" and the objective count is the calibration signal. Just say "capture this convo" to trigger the skill.
+4. **`/harvest-interventions`** mines transcripts + git + PRs to reconstruct interventions you didn't log by hand, and proposes entries to confirm. `--session <id>` scopes it to one conversation.
+5. **`/maturity-review`** scores the three dimensions from the log, computes the north star + trend, runs an ablation check on the last change, and recommends exactly one next move.
 
 ## Architecture: engine vs. data
 
 This repo is the **engine** — generic, shareable, carries no personal data:
 
 ```
-skills/   harvest-interventions, maturity-review, scope-gate
-scripts/  li (log), ensure/sync data, scope-gate hooks, ona evidence collector
+skills/   harvest-interventions, maturity-review, scope-gate, capture-conversation
+scripts/  li (log), capture (subjective convo flag), ensure/sync data, scope-gate hooks, ona evidence collector
 rubric.md tags.md   defaults (fork/customize per person)
 install.sh
 ```

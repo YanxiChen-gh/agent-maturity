@@ -22,7 +22,30 @@ escape hatch for things artifacts can't see.
 - **Repo** — default: the current repo (`git rev-parse --show-toplevel | xargs basename`).
   Ask if the user named several; harvest one at a time so the confirm step stays legible.
 - **Window** — default: last 14 days. Honor an explicit range if given.
+- **`--session <id>` / `--session current`** — optional. Switches to **session-scoped mode**
+  (see below): mine exactly one conversation instead of a repo+window. This is what
+  `capture-conversation` calls for an opt-in "harvest this convo while it's fresh", and what
+  reconciles a flagged session against the count later.
 - Target log: `$AGENT_MATURITY_DATA_DIR/interventions.jsonl`.
+
+## Session-scoped mode (`--session`)
+
+When invoked with `--session <id>` (or `--session current`):
+
+- **`current`** resolves to the session id on the `[scope-gate] (session: <id>)` line the
+  UserPromptSubmit hook injects into context.
+- Locate that session's transcript by filename (the id is the `*.jsonl` basename) in BOTH
+  `~/.claude/projects/*/` and `$AGENT_MATURITY_DATA_DIR/evidence/*/projects/*/`. Reading it at
+  harvest time naturally includes every turn added *after* any earlier capture/flag — the file
+  is append-only and keeps growing, so "capture the rest of the thread" needs nothing more than
+  reading it now.
+- **Skip** the repo+window default and steps 0b/0c (no cross-env sweep, no brief aggregation —
+  this is one conversation, fresh). Still run 0a (provision the data store).
+- Dispatch the step-1 mining subagent against **only that one transcript file**, with the same
+  classification rules (source A). Sources B/C (git, PRs) don't apply to a single session.
+- Run the same human-confirm gate (step 2+) and write to the same `interventions.jsonl`.
+- The mined session id is already stamped in each entry's `evidence` (`transcript <id>#turnN`);
+  this lets a later batch run skip sessions already harvested this way and avoid double-proposing.
 
 ## Procedure
 

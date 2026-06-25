@@ -2,8 +2,8 @@
 # Install the agent-maturity engine for the current user.
 #
 # What it does (all idempotent, non-clobbering):
-#   1. Symlinks the three skills into ~/.claude/skills/
-#   2. Writes ~/.agent-maturity.env (config: HOME, DATA_DIR, DATA_REPO, PATH, `li` alias)
+#   1. Symlinks the skills into ~/.claude/skills/
+#   2. Writes ~/.agent-maturity.env (config: HOME, DATA_DIR, DATA_REPO, PATH, li + capture aliases)
 #      and makes your shell profile source it.
 #   3. Registers the scope-gate hooks into ~/.claude/settings.json (unless --no-hooks).
 #
@@ -58,7 +58,7 @@ echo
 # 1. Make scripts executable + symlink skills.
 run "chmod +x '$HOME_DIR'/scripts/*.sh"
 run "mkdir -p '$SKILLS_DIR'"
-for s in harvest-interventions maturity-review scope-gate; do
+for s in harvest-interventions maturity-review scope-gate capture-conversation; do
   run "ln -sfn '$HOME_DIR/skills/$s' '$SKILLS_DIR/$s'"
 done
 echo "✓ skills symlinked"
@@ -66,7 +66,7 @@ echo "✓ skills symlinked"
 # 2. Write the config env file and source it from the shell profile(s).
 ENV_FILE="$HOME/.agent-maturity.env"
 if [ "$DRY" = 1 ]; then
-  echo "  [dry-run] write $ENV_FILE (HOME, DATA_DIR, DATA_REPO, PATH, li alias)"
+  echo "  [dry-run] write $ENV_FILE (HOME, DATA_DIR, DATA_REPO, PATH, li + capture aliases)"
 else
   {
     echo "# agent-maturity config — written by install.sh; edit values as needed."
@@ -77,6 +77,7 @@ else
     [ -n "$GIT_EMAIL" ] && echo "export AGENT_MATURITY_GIT_EMAIL=\"$GIT_EMAIL\""
     echo "export PATH=\"\$AGENT_MATURITY_HOME/scripts:\$PATH\""
     echo "alias li=\"\$AGENT_MATURITY_HOME/scripts/log-intervention.sh\""
+    echo "alias capture=\"\$AGENT_MATURITY_HOME/scripts/capture.sh\""
   } > "$ENV_FILE"
 fi
 echo "✓ config written → $ENV_FILE"
