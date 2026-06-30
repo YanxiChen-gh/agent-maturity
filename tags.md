@@ -29,6 +29,7 @@ Grouped by the dimension they usually attach to. The grouping is a hint, not a c
 - `logic-bug` — a real correctness/logic bug the human caught (in review or mid-task).
 - `revert` — asked to undo/revert prior agent work.
 - `quality-noise` — verbosity, over-engineering, unnecessary comments/tests; "cut this", "too prescriptive".
+- `verbose-output` — model wrote verbose/redundant **code comments** or coverage-only/over-mocked tests; "cut the comments", "too verbose", "simplify this". A narrower, trendable subset of `quality-noise` isolating output *verbosity* (vs over-engineering / over-prescription) — often co-tagged with it. This is the ablation signal for any conciseness lever (model-specific: Opus 4.8 over-comments by default).
 
 ### Spec-leaning (usually on `clarification`)
 - `scope-redirect` — approach or PR-decomposition redirect ("split this", "too much", "do X first").
