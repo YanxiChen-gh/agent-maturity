@@ -53,13 +53,25 @@ merely exists somewhere.
 4. **Compute the north star** — interventions per merged agent-PR (total + per type) — and
    state the trend vs the previous tracker entry. If no baseline, set one.
 
-5. **Ablation check** — look at the previous changelog entry: did that harness change move the
-   metric? If not, name it as candidate scaffolding to strip (models improve; don't accrete).
+5. **Ablation + harness re-read** (before recommending, so retirement candidates compete as the
+   one move):
+   - *Ablation* — look at the previous changelog entry: did that harness change move the metric?
+     If not — or if it was **recommended but never built** and the metric moved anyway — name it
+     as candidate scaffolding to retire. A recommended-but-unbuilt lever whose bottleneck then
+     receded is a **do-not-build** flag, not a backlog item (don't accrete against a problem that
+     moved).
+   - *Model-upgrade trigger* — if the agent's model tier changed since the last review, re-read
+     the **whole** harness (every gate/hook/skill) and flag anything the model now does for free
+     as a retirement candidate. (LOOPS.md rule VIII.)
 
-6. **Recommend exactly one next move**: the cheapest lever on the weakest / most-painful
-   dimension. **Prefer wiring up an asset you already own** over building new — e.g.
-   `full-verification-workflow`, `review-pr`, `simplify-pr`, the ai-platform eval skills,
-   worktree/background-job orchestration. Name the concrete change and how you'll know it worked.
+6. **Recommend exactly one next move** — the highest-leverage lever on the weakest / most-painful
+   dimension. The one move may be **additive** (wire up a capability) **or a retirement** (remove
+   scaffolding the model has outgrown); retirement candidates from step 5 compete on equal footing,
+   and a removal that buys the most clarity/speed *is* the recommendation. **Prefer wiring up an
+   asset you already own** (e.g. `full-verification-workflow`, `review-pr`, `simplify-pr`, the
+   ai-platform eval skills, worktree/background-job orchestration) over building new; prefer
+   deleting dead scaffolding over either. Still exactly one move — named concretely, with how
+   you'll know it worked.
 
 7. **Update the tracker**: rewrite the scorecard table (point-in-time) + "Last reviewed" date,
    **append one row to the "North-star history" table** (append-only trend line — never
@@ -77,8 +89,8 @@ Keep it tight — a checkpoint, not an essay:
 
 - **Scorecard**: the table (Trust / Spec / Babysit / Overall) with one evidence line each.
 - **North star**: the rate + trend (or "baseline set").
-- **Ablation**: did the last change pay off? (one line)
-- **Next move**: the single recommendation — what, why this one, expected metric effect, how to verify.
+- **Ablation**: did the last change pay off — and is anything now a retirement/do-not-build candidate? (one line)
+- **Next move**: the single recommendation (additive **or** a retirement) — what, why this one, expected metric effect, how to verify.
 
 Then state plainly that the tracker has been updated.
 

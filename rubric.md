@@ -21,6 +21,16 @@ Three dimensions, each scored L1–L5. They map to the three places attention go
 **Overall level = the weakest dimension** (min). You are only as autonomous as your
 weakest layer — a perfect verifier doesn't help if agents stall hourly waiting on you.
 
+> **Why there's no fourth "taste/quality" dimension.** Karpathy's LOOPS.md argues subjective
+> quality is gradable if you write the rubric (weighted axes, calibrated on reference good/slop).
+> We deliberately *don't* add that as a scored dimension here — by design, not oversight. This
+> model measures **human attention per shipped change**, so output quality enters only as the
+> *attention it costs* (a `quality-noise`-tagged `correction`/`clarification`), never as an
+> absolute quality score. Subjective signal is captured on a **separate, uncounted track**
+> (`captures.jsonl` via the `capture` skill); the gap between "felt heavy" and the objective
+> count is itself the calibration signal. Revisit only if you start shipping generative artifacts
+> where taste *is* the deliverable — for a coding-autonomy tracker it isn't.
+
 ### Vocabulary alignment (so the rubric is legible to others)
 
 Our 3-axis decomposition is our own, but the levels map onto the published models — cite
@@ -95,10 +105,23 @@ this system and directly proxy two of our dimensions. Add them once the data exi
    and GitHub. State the trend vs the previous tracker entry. Where the data exists, also
    report the supporting signals (agent-initiated question rate → Spec; human-interruption
    rate → Babysit); if it doesn't yet, say so rather than guessing.
-4. Recommend **exactly one** next move: the cheapest lever on the **weakest / most-painful**
-   dimension. Prefer wiring up an asset that already exists over building new.
-5. Ablation check: did the *previous* changelog change actually move the metric? If not,
-   flag it as candidate scaffolding to remove (models improve; strip what's not load-bearing).
+4. **Ablation + harness re-read** (do this *before* recommending, so its output competes as the
+   one move). Two parts:
+   - *Ablation:* did the *previous* changelog change actually move the metric? If not — or if it
+     was recommended but **never built** and the metric moved anyway — name it as candidate
+     scaffolding to retire (models improve; strip what's not load-bearing). A recommended-but-
+     unbuilt lever whose bottleneck then receded is a **do-not-build** flag, not a backlog item.
+   - *Model-upgrade trigger:* if the agent's model tier changed since the last review (note it in
+     the changelog when it does), re-read the **whole** harness — every gate/hook/skill — and ask
+     of each "does the model now do this for free?" List anything newly redundant as a retirement
+     candidate. (LOOPS.md rule VIII: a harness that only grows is one you've stopped reading.)
+5. Recommend **exactly one** next move — the highest-leverage lever on the **weakest / most-
+   painful** dimension. The one move may be **additive** (wire up a capability) **or a retirement**
+   (remove scaffolding the model has outgrown) — whichever pays off most this cycle; retirement
+   candidates from step 4 compete on equal footing, and a removal that buys the most clarity/speed
+   *is* the recommendation. Prefer wiring up an asset that already exists over building new; prefer
+   deleting dead scaffolding over either. The single-lever discipline holds either way: one move,
+   named concretely, with how you'll know it worked.
 
 ---
 
