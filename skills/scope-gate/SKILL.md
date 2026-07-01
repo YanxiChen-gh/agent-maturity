@@ -46,6 +46,13 @@ a one-line `trivial_reason`, then proceed to code. Do not over-scope trivial wor
 2. **Restate** the task in one line + **pass-to-pass acceptance checks** — concrete,
    checkable conditions that define done.
 
+2b. **Declare the approach** — state the key implementation choices you intend *before*
+   writing code, one line each. Cover whichever apply: which API/SDK/library, runtime
+   resolution vs codegen, reusing an existing abstraction vs a new one, a real fix vs a
+   workaround. Note a rejected alternative + one-line why-not where it's a genuine fork.
+   These are the choices the human otherwise only sees in review — surfacing them here is
+   the point of the gate. Declare what's true for *this* task; don't copy examples.
+
 3. **Propose a PR-decomposition** if the work is multi-part: an ordered list of
    independently-shippable parts.
 
@@ -54,36 +61,55 @@ a one-line `trivial_reason`, then proceed to code. Do not over-scope trivial wor
    assumption.
 
 5. **Approval (mode-dependent):**
-   - **Interactive** (no `$CLAUDE_JOB_DIR`): present the brief, ask the scope
-     questions, and **wait for approval** before writing code.
+   - **Interactive** (no `$CLAUDE_JOB_DIR`): present the brief — **including the
+     approach declaration** — ask the scope questions, and **wait for approval** before
+     writing code. The approach lines are the primary thing to confirm: divergence caught
+     here costs a sentence, not a rewrite.
    - **Autonomous** (`$CLAUDE_JOB_DIR` set): do **not** wait. Record each open
      question as an `assumed` resolution with its assumption, proceed to code, and
-     **surface the assumptions in the PR description** for async review.
+     **surface the approach declaration and assumptions in the PR description** for
+     async review.
 
 6. **Write the brief** with the Write tool (this path is floored, so the hook allows
    it) to:
 
-       $AGENT_MATURITY_DATA_DIR/briefs/<YYYY-MM-DD>-<session_id>.json
+       $AGENT_MATURITY_DATA_DIR/briefs/<YYYY-MM-DD>-<session_id>.md
 
    Use the `session_id` from the `[scope-gate] (session: …)` line the
    UserPromptSubmit hook injected. If you don't have it, check that line in context.
-   Schema:
 
-   ```json
-   {
-     "session_id": "...",
-     "created_at": "ISO-8601",
-     "mode": "interactive | autonomous",
-     "task_descriptor": "one line",
-     "triage": "non-trivial | trivial",
-     "trivial_reason": "string, present iff triage==trivial",
-     "acceptance_checks": ["...", "..."],
-     "pr_decomposition": ["...", "..."],
-     "questions": [
-       {"q": "...", "resolution": "answered | assumed", "assumption": "string if assumed"}
-     ],
-     "covers": ["path or glob this brief scopes"]
-   }
+   The brief is **markdown**: a small YAML frontmatter *envelope* (the only fields
+   anything indexes on — keep it stable) plus a **free-form body**. Nothing parses the
+   body field-by-field — the existence hook checks the filename, and the harvester reads
+   it with an LLM — so write the body as legible prose under headings, not a rigid schema.
+   Include the sections that apply; omit what doesn't (e.g. skip PR-decomposition when the
+   work is a single PR). For a trivial task, set `triage: trivial` in frontmatter and give
+   a one-line reason in the body — nothing more.
+
+   ```markdown
+   ---
+   session_id: ...
+   created_at: <YYYY-MM-DD>
+   mode: interactive | autonomous
+   triage: non-trivial | trivial
+   covers:
+     - <path or glob this brief scopes>
+   ---
+
+   # Task
+   <one line>
+
+   ## Acceptance checks
+   - <concrete pass-to-pass condition>
+
+   ## Approach
+   - <key implementation choice for THIS task; rejected alt + why-not where it's a fork>
+
+   ## PR decomposition
+   <ordered independently-shippable parts, or a one-line "single PR — <why>">
+
+   ## Questions
+   - <blocker> — answered: <answer> | assumed: <assumption>
    ```
 
 7. **Sync** so the brief persists off the ephemeral env:

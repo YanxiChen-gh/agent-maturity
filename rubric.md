@@ -76,7 +76,7 @@ this system and directly proxy two of our dimensions. Add them once the data exi
 |---|---|---|
 | **L1 Hand-fed** | You write detailed prompts and decompose every task by hand; under-specified tasks go wrong. | High rework rate; long prompt-writing time; agents guess and miss. |
 | **L2 Context-primed** | Reusable context (AGENTS.md / CLAUDE.md / skills) lets agents start with less hand-holding, but you still decompose the work. | Stable AGENTS.md/skills; fewer "you forgot X" corrections. |
-| **L3 Spec-as-tests** | Agent converts the spec into **executable graders (pass-to-pass tests)** as step one, and plans-then-executes so ambiguity surfaces before code. | Tests-first artifacts on tasks; plan step catches misreads pre-code. |
+| **L3 Spec-as-tests** | Agent converts the spec into **executable graders (pass-to-pass tests)** as step one, and plans-then-executes so ambiguity surfaces before code — including the **approach declared and confirmed pre-code** (scope-gate brief), not discovered in review. | Tests-first artifacts on tasks; plan step catches misreads pre-code; low approach-divergence rate on non-trivial briefs. |
 | **L4 Self-scoping** | A **detector/intent agent** gates "do I have enough to proceed?" and batches the *right* questions at the *right* time (good Ask-F1 — neither silent-guessing nor question-spam). | Low rework rate; questions land before wrong turns, not after; rising *agent-initiated question rate* at good precision. |
 | **L5 Intent-driven** | You hand high-level intent; the agent scopes, decomposes, and asks only genuinely-needed questions itself. | Minimal pre-writing; you state outcomes, not steps. |
 

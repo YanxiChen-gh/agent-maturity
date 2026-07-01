@@ -43,10 +43,15 @@ sg_path_in_git_repo() {  # $1=path
 # The brief store is provisioned/readable.
 sg_store_readable() { [ -d "$SG_BRIEFS_DIR" ]; }
 
-# A brief exists for this session (v1 "covers" == exists).
+# A brief exists for this session (v1 "covers" == exists). Briefs are markdown
+# (frontmatter + body); legacy `.json` briefs still count so old sessions don't wedge.
 sg_brief_exists() {  # $1=session_id
   [ -n "${1:-}" ] || return 1
-  ls "$SG_BRIEFS_DIR"/*"$1"*.json >/dev/null 2>&1
+  local f
+  for f in "$SG_BRIEFS_DIR"/*"$1"*.md "$SG_BRIEFS_DIR"/*"$1"*.json; do
+    [ -e "$f" ] && return 0
+  done
+  return 1
 }
 
 # Best-effort append to the gate log; never fails the caller.

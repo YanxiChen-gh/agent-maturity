@@ -53,7 +53,10 @@ test_lib(){
 
   sg_brief_exists "S1" && no "no brief for S1 yet" || ok "no brief for S1 yet"
   touch "$AGENT_MATURITY_DATA_DIR/briefs/2026-06-15-S1.json"
-  sg_brief_exists "S1" && ok "brief found for S1" || no "brief found for S1"
+  sg_brief_exists "S1" && ok "legacy .json brief found for S1" || no "legacy .json brief found for S1"
+  sg_brief_exists "Smd" && no "no brief for Smd yet" || ok "no brief for Smd yet"
+  touch "$AGENT_MATURITY_DATA_DIR/briefs/2026-07-01-Smd.md"
+  sg_brief_exists "Smd" && ok "markdown brief found for Smd" || no "markdown brief found for Smd"
   sg_brief_exists "" && no "empty session never matches" || ok "empty session never matches"
 
   rm -rf "$tmp"; unset AGENT_MATURITY_DATA_DIR
@@ -81,7 +84,11 @@ test_pretooluse(){
 
   touch "$AGENT_MATURITY_DATA_DIR/briefs/2026-06-15-S1.json"
   echo "{\"session_id\":\"S1\",\"tool_input\":{\"file_path\":\"$code\"}}" | "$PRE" >/dev/null 2>&1
-  assert_eq "allows code edit with brief" 0 "$?"
+  assert_eq "allows code edit with legacy .json brief" 0 "$?"
+
+  touch "$AGENT_MATURITY_DATA_DIR/briefs/2026-07-01-Smd.md"
+  echo "{\"session_id\":\"Smd\",\"tool_input\":{\"file_path\":\"$code\"}}" | "$PRE" >/dev/null 2>&1
+  assert_eq "allows code edit with markdown brief" 0 "$?"
 
   echo "{\"session_id\":\"S9\",\"tool_input\":{\"file_path\":\"$code\"}}" | env SCOPE_GATE=off "$PRE" >/dev/null 2>&1
   assert_eq "kill switch allows" 0 "$?"

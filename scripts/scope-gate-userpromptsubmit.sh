@@ -22,6 +22,6 @@ work, a "make it X" architectural ask, multi-part (PR-decomposition) work, or yo
 unsure. Default to non-trivial when unsure. Trivial (one obvious, cheaply-reversible
 change, no new interface, no approach fork) → just proceed. If a new non-trivial task
 starts mid-session, re-run /scope-gate. When the skill writes the brief, name it
-\$AGENT_MATURITY_DATA_DIR/briefs/<YYYY-MM-DD>-${session}.json
+\$AGENT_MATURITY_DATA_DIR/briefs/<YYYY-MM-DD>-${session}.md
 MSG
 exit 0

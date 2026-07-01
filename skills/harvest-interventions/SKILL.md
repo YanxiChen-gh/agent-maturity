@@ -76,7 +76,9 @@ slice. Before mining, check the evidence freshness:
 ### 0c. Read scope-gate briefs (the gate's measurement substrate)
 
 If `$AGENT_MATURITY_DATA_DIR/briefs/` has entries in the window, summarize them for
-`/maturity-review`:
+`/maturity-review`. Briefs are markdown (frontmatter + body); older ones may be `.json` —
+read both. Frontmatter carries `triage`/`covers`; the body carries the Approach, acceptance
+checks, and questions in prose.
 
 - **scoped-before-code rate** = non-trivial briefs ÷ (non-trivial briefs + non-trivial
   tasks that reached code with no brief, inferred from transcripts). Report the count
@@ -84,6 +86,13 @@ If `$AGENT_MATURITY_DATA_DIR/briefs/` has entries in the window, summarize them 
 - **Ask-F1 inputs** — count batched up-front questions in briefs vs. clarifications
   that still landed *later* in the same session's transcript. Falling later-clarifications
   with steady up-front question precision = the gate working.
+- **approach-divergence rate** = clarifications tagged `wrong-approach` / `scope-redirect`
+  whose correction *contradicts an Approach line the brief already declared* ÷ non-trivial
+  briefs in the window. This is the number the approach-declaration lever targets: redirects
+  the pre-code declaration should have surfaced but didn't. Drive it toward zero. Judge it
+  semantically (does the redirect reverse a declared choice?), same as any intervention
+  classification. **Distinguish** from *novel* approach forks not in any declaration — those
+  are the gate working (the human confirming a fork the agent surfaced early), not a miss.
 
 Report these as a short block; `/maturity-review` consumes them in its Spec scoring and
 ablation check. If `briefs/` is empty (gate not yet exercised), say so.
