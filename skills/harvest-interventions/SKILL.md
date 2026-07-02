@@ -150,6 +150,19 @@ the repo, the window, and these instructions verbatim:
 > **C. PRs** (`gh pr list`/`gh pr view`, author=@me, merged or open in window). Count review
 > round-trips / "changes requested" cycles → corroborating **correction** signal. Report PR #s.
 >
+> **D. Recurring human imperatives (cross-session).** Beyond classifying each turn in isolation,
+> look ACROSS the sessions you read for **instructions the human issues repeatedly that the agent
+> could have done unprompted** — e.g. "did you test it / show evidence", "run typecheck", "tighten
+> the comments", "handle the error case", "check the logs". Cluster them by *meaning*, not wording
+> (there is NO fixed phrase list — infer the clusters from what actually recurs; new frictions
+> should surface on their own). For each cluster recurring across **≥3 distinct sessions**, report a
+> one-line gloss, the distinct-session count, total occurrences, one short example quote, the
+> underlying `type` (so it reconciles with the counts above), and a `candidate_default` flag — would
+> a standing default (context-prime or a gate) plausibly remove this instruction? This is the generic
+> signal behind "if you keep typing X, automate it": each frequent cluster is simultaneously an
+> **undercounted intervention** and a **candidate lever** for `/maturity-review`. Do not enumerate
+> clusters below the 3-session floor; note if you truncated a long tail.
+>
 > Output schema:
 > ```json
 > {
@@ -160,6 +173,10 @@ the repo, the window, and these instructions verbatim:
 >     {"date":"YYYY-MM-DD","type":"correction|clarification|unblock",
 >      "note":"<short, what happened>","source":"auto","tags":["<slug>", ...],
 >      "evidence":"transcript <id>#turn<N> | commit <sha> | PR #<n>","confidence":"high|med|low"}
+>   ],
+>   "recurring_imperatives": [
+>     {"gloss":"<the instruction the human keeps issuing>","type":"correction|clarification|unblock",
+>      "sessions":<int>,"occurrences":<int>,"example":"<short quote>","candidate_default":true|false}
 >   ],
 >   "new_tags": {"<new-slug>": "<one-line definition>"}
 > }
@@ -176,6 +193,10 @@ From the subagent's JSON, show the user a tight summary — **don't** dump all r
 - 2–3 example notes per type
 - flag any `low` confidence rows separately
 - if the subagent returned `new_tags`, surface them and ask whether to adopt them into `tags.md`
+- **recurring imperatives** — list the top clusters (gloss, distinct-session count,
+  `candidate_default`), highest-frequency first. These are *automation candidates*, not log rows
+  to confirm — they feed `/maturity-review`'s next-lever step, so don't ask to write them; just
+  show them and carry them forward.
 
 Then ask one question: **write all, prune some, or discard?** Offer "write all" as the default
 for the lazy path. If they prune, take the list of indices to drop.
@@ -199,7 +220,10 @@ Persist the writes off this ephemeral env:
 
 Tell the user the log is populated and to run **`/maturity-review`** next for the evidence-based
 baseline. Mention the `agent_initiated_questions` count — it feeds the Spec supporting signal
-(agent-initiated question rate) that `/maturity-review` reports.
+(agent-initiated question rate) that `/maturity-review` reports. Also carry forward the
+`recurring_imperatives` clusters: `/maturity-review` weighs them as candidate levers — a frequent
+`candidate_default:true` cluster is a ready-made "wire up a standing default" recommendation, and
+the count is the honest read on Trust/Babysit friction the per-turn classification undercounts.
 
 ## Notes
 

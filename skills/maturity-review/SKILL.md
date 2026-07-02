@@ -43,6 +43,11 @@ merely exists somewhere.
      `gh pr list --author "@me" --state merged --limit 30 --json number,title,reviewDecision,createdAt,mergedAt`
      and for a sample, review round-trips / post-handoff force-pushes / time-to-merge as Trust signal.
    - The skills/plugins actually wired into the loop (what gates completion vs what's opt-in).
+   - **Recurring-imperative clusters** from the latest `/harvest-interventions` run (its
+     `recurring_imperatives`): a frequent `candidate_default:true` cluster is both a correction to
+     the per-turn undercount (Trust/Babysit friction hides in instructions the human keeps
+     re-issuing, which single-turn classification misses) and a ready-made lever candidate for
+     step 6 ("wire up a standing default for X"). If there's no recent harvest, note it.
    If evidence is thin, score provisionally and **say what data would firm it up** — never
    inflate a level on hope.
 
