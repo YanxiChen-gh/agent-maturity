@@ -22,10 +22,10 @@ win worth recording. Both directions matter — don't only capture the painful o
 
 ### 1. Resolve the session id
 
-The flag attaches to a Claude session so a later harvest can mine its transcript. Get the id
+The flag attaches to an agent session so a later harvest can mine its transcript. Get the id
 from the `[scope-gate] (session: <id>)` line the UserPromptSubmit hook injects into context
-(it appears on every turn). If it isn't present, derive it from the transcript path
-(`~/.claude/projects/<proj>/<session-id>.jsonl`) or ask the user. A session-less flag is
+(it appears on every turn). If it isn't present, derive it from the Claude or Codex transcript
+path, use the OpenCode session id, or ask the user. A session-less flag is
 allowed but loses the later deep-harvest option, so prefer to resolve it.
 
 ### 2. Determine valence from the user's phrasing

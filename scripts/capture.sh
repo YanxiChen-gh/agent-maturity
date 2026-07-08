@@ -18,7 +18,7 @@
 #               agent-written weight just re-derives the objective count and destroys the
 #               flag's independence. Omit when unstated.
 #     tags      optional comma-separated "what-kind" slugs from $AGENT_MATURITY_HOME/tags.md
-#     --session <id>  Claude session id this flag attaches to, so a later
+#     --session <id>  coding-agent session id this flag attaches to, so a later
 #                     `/harvest-interventions --session <id>` can mine the full transcript
 #                     (including turns added AFTER the flag). Omit for a session-less flag.
 #   weight and tags are order-independent: a purely-numeric positional arg is weight,

@@ -61,11 +61,12 @@ a one-line `trivial_reason`, then proceed to code. Do not over-scope trivial wor
    assumption.
 
 5. **Approval (mode-dependent):**
-   - **Interactive** (no `$CLAUDE_JOB_DIR`): present the brief — **including the
+   - **Interactive** (default): present the brief — **including the
      approach declaration** — ask the scope questions, and **wait for approval** before
      writing code. The approach lines are the primary thing to confirm: divergence caught
      here costs a sentence, not a rewrite.
-   - **Autonomous** (`$CLAUDE_JOB_DIR` set): do **not** wait. Record each open
+   - **Autonomous** (`$AGENT_MATURITY_AUTONOMOUS=1`, or a Claude background job with
+     `$CLAUDE_JOB_DIR` set): do **not** wait. Record each open
      question as an `assumed` resolution with its assumption, proceed to code, and
      **surface the approach declaration and assumptions in the PR description** for
      async review.

@@ -2,13 +2,13 @@
 # Install the agent-maturity engine for the current user.
 #
 # What it does (all idempotent, non-clobbering):
-#   1. Symlinks the skills into ~/.claude/skills/
+#   1. Symlinks the skills into ~/.claude/skills/ and ~/.agents/skills/
 #   2. Writes ~/.agent-maturity.env (config: HOME, DATA_DIR, DATA_REPO, PATH, li + capture aliases)
 #      and makes your shell profile source it.
-#   3. Registers the scope-gate hooks into ~/.claude/settings.json (unless --no-hooks).
+#   3. Registers the scope-gate hooks for Claude Code and Codex (unless --no-hooks).
 #
-# It does NOT touch your data — the per-user private data repo is cloned lazily on first
-# skill use by ensure-maturity-data.sh (gh must be authenticated then).
+# It creates the local briefs directory so the scope gate is active immediately. The private
+# data repo is still cloned lazily on first skill use by ensure-maturity-data.sh.
 #
 # Usage:
 #   ./install.sh [--data-repo <owner/name>] [--data-dir <path>] [--skills-dir <path>]
@@ -18,7 +18,7 @@
 #                 Recommended; without it the scope-gate still works offline but harvest/review
 #                 can't sync. You can also create it later and set AGENT_MATURITY_DATA_REPO yourself.
 #   --data-dir    where the data repo is cloned (default ~/.agent-maturity-data).
-#   --skills-dir  Claude skills dir (default ~/.claude/skills).
+#   --skills-dir  additional skills dir (Claude + agent-standard dirs are always installed).
 #   --name/--email  git identity for data-repo commits (default: your global git config).
 #   --no-hooks    skip scope-gate hook registration.
 #   --dry-run     print what would happen; change nothing.
@@ -26,9 +26,22 @@
 set -uo pipefail
 
 HOME_DIR="$(cd "$(dirname "$0")" && pwd)"   # the engine repo root = where this script lives
+ENV_FILE="$HOME/.agent-maturity.env"
 
-DATA_REPO=""; DATA_DIR="$HOME/.agent-maturity-data"; SKILLS_DIR="$HOME/.claude/skills"
-GIT_NAME=""; GIT_EMAIL=""; NO_HOOKS=0; DRY=0
+# Preserve previously installed values when a later bootstrap omits optional flags.
+if [ -f "$ENV_FILE" ]; then
+  set +u
+  # shellcheck source=/dev/null
+  . "$ENV_FILE"
+  set -u
+fi
+
+DATA_REPO="${AGENT_MATURITY_DATA_REPO:-}"
+DATA_DIR="${AGENT_MATURITY_DATA_DIR:-$HOME/.agent-maturity-data}"
+SKILLS_DIR=""
+GIT_NAME="${AGENT_MATURITY_GIT_NAME:-}"
+GIT_EMAIL="${AGENT_MATURITY_GIT_EMAIL:-}"
+NO_HOOKS=0; DRY=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -51,20 +64,47 @@ echo "agent-maturity install"
 echo "  engine home : $HOME_DIR"
 echo "  data dir    : $DATA_DIR"
 echo "  data repo   : ${DATA_REPO:-<unset — set later via AGENT_MATURITY_DATA_REPO>}"
-echo "  skills dir  : $SKILLS_DIR"
+echo "  skills dirs : $HOME/.claude/skills, $HOME/.agents/skills${SKILLS_DIR:+, $SKILLS_DIR}"
 [ "$DRY" = 1 ] && echo "  (dry-run: no changes)"
 echo
 
-# 1. Make scripts executable + symlink skills.
-run "chmod +x '$HOME_DIR'/scripts/*.sh"
-run "mkdir -p '$SKILLS_DIR'"
-for s in harvest-interventions maturity-review scope-gate capture-conversation; do
-  run "ln -sfn '$HOME_DIR/skills/$s' '$SKILLS_DIR/$s'"
+# 1. Make scripts executable + symlink skills. Claude Code uses its compatibility path;
+# Codex and OpenCode both discover the open Agent Skills path.
+run "chmod +x '$HOME_DIR'/scripts/*.sh" || {
+  echo "install: failed to make scripts executable" >&2
+  exit 1
+}
+SKILLS_DIRS=("$HOME/.claude/skills" "$HOME/.agents/skills")
+[ -n "$SKILLS_DIR" ] && SKILLS_DIRS+=("$SKILLS_DIR")
+for skills_dir in "${SKILLS_DIRS[@]}"; do
+  run "mkdir -p '$skills_dir'" || {
+    echo "install: failed to create skills directory $skills_dir" >&2
+    exit 1
+  }
+  for s in harvest-interventions maturity-review scope-gate capture-conversation; do
+    target="$skills_dir/$s"
+    source="$HOME_DIR/skills/$s"
+    if { [ -e "$target" ] || [ -L "$target" ]; } \
+      && { [ ! -L "$target" ] || [ "$(readlink "$target")" != "$source" ]; }; then
+      echo "install: refusing to replace unmanaged skill path $target" >&2
+      exit 1
+    fi
+    run "ln -sfn '$source' '$target'" || {
+      echo "install: failed to link skill $target" >&2
+      exit 1
+    }
+  done
 done
-echo "✓ skills symlinked"
+echo "✓ skills symlinked for Claude Code, Codex, and OpenCode"
+
+# Activate the hard gate before the private data repo is needed. Lazy provisioning supports
+# cloning into this pre-existing directory without replacing local briefs.
+run "mkdir -p '$DATA_DIR/briefs'" || {
+  echo "install: failed to create brief store $DATA_DIR/briefs" >&2
+  exit 1
+}
 
 # 2. Write the config env file and source it from the shell profile(s).
-ENV_FILE="$HOME/.agent-maturity.env"
 if [ "$DRY" = 1 ]; then
   echo "  [dry-run] write $ENV_FILE (HOME, DATA_DIR, DATA_REPO, PATH, li + capture aliases)"
 else
@@ -117,15 +157,28 @@ if [ "$sourced_any" = 0 ]; then
   echo "✓ created $(basename "$rc") sourcing config"
 fi
 
-# 3. Register scope-gate hooks.
+# 3. Register scope-gate hooks. OpenCode uses its plugin API rather than this hook format;
+# the Dotfiles integration provides that adapter and points it at these same scripts.
 if [ "$NO_HOOKS" = 1 ]; then
   echo "• skipping scope-gate hooks (--no-hooks)"
 else
   if [ "$DRY" = 1 ]; then
     echo "  [dry-run] AGENT_MATURITY_HOME='$HOME_DIR' '$HOME_DIR'/scripts/scope-gate-register.sh"
+    echo "  [dry-run] AGENT_MATURITY_HOME='$HOME_DIR' '$HOME_DIR'/scripts/scope-gate-register.sh '$HOME/.codex/hooks.json'"
   else
-    AGENT_MATURITY_HOME="$HOME_DIR" "$HOME_DIR"/scripts/scope-gate-register.sh \
-      && echo "✓ scope-gate hooks registered in ~/.claude/settings.json"
+    if AGENT_MATURITY_HOME="$HOME_DIR" "$HOME_DIR"/scripts/scope-gate-register.sh; then
+      echo "✓ scope-gate hooks registered in ~/.claude/settings.json"
+    else
+      echo "install: failed to register Claude Code scope-gate hooks" >&2
+      exit 1
+    fi
+    if AGENT_MATURITY_HOME="$HOME_DIR" "$HOME_DIR"/scripts/scope-gate-register.sh "$HOME/.codex/hooks.json"; then
+      echo "✓ scope-gate hooks registered in ~/.codex/hooks.json"
+    else
+      echo "install: failed to register Codex scope-gate hooks" >&2
+      exit 1
+    fi
+    echo "  Codex requires one-time review of changed user hooks: open /hooks and trust them."
   fi
 fi
 

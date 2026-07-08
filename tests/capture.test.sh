@@ -10,7 +10,7 @@ assert_eq(){ if [ "$2" = "$3" ]; then ok "$1"; else no "$1 (want [$2], got [$3])
 
 # Each test runs in an isolated data dir so captures.jsonl never touches real data, and points
 # AGENT_MATURITY_CAPTURES straight at the temp file (ensure-maturity-data is a best-effort no-op).
-new_env(){ TMP="$(mktemp -d)"; export AGENT_MATURITY_DATA_DIR="$TMP/data"; mkdir -p "$AGENT_MATURITY_DATA_DIR"; export AGENT_MATURITY_CAPTURES="$AGENT_MATURITY_DATA_DIR/captures.jsonl"; }
+new_env(){ TMP="$(mktemp -d)"; export AGENT_MATURITY_DATA_DIR="$TMP/data"; unset AGENT_MATURITY_DATA_REPO AGENT_MATURITY_DATA_URL; mkdir -p "$AGENT_MATURITY_DATA_DIR"; export AGENT_MATURITY_CAPTURES="$AGENT_MATURITY_DATA_DIR/captures.jsonl"; }
 field(){ python3 -c 'import json,sys; print(json.loads(sys.stdin.readline()).get(sys.argv[1],""))' "$1"; }
 
 # --- valence is required and validated ---

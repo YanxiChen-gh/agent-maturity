@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Idempotently register the scope-gate hooks into a Claude settings.json.
+# Idempotently register the scope-gate hooks into a Claude or Codex hooks file.
 # Non-clobbering: preserves existing hooks (e.g. the RTK Bash PreToolUse entry).
 # Usage: scope-gate-register.sh [path-to-settings.json]   (default: ~/.claude/settings.json)
 set -uo pipefail

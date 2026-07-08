@@ -34,6 +34,9 @@ merely exists somewhere.
 
 2. **Gather evidence** (pragmatic — this is signal, not an audit). Prefer cheap reads:
    - Intervention log: counts by `type` over the window since the last review, total cost_min.
+     When entries carry `client` or `model`, also break down the rate by client and model so a
+     mixed-agent workflow does not hide a tool-specific regression. Keep unlabeled manual entries
+     in the aggregate and report them as unlabeled rather than guessing provenance.
      Also break down by **`tags`** (the orthogonal what-kind facet, vocabulary in
      `$AGENT_MATURITY_HOME/tags.md`): report counts per tag and, for any tag tied to
      a live hypothesis or the previous review's recommended move (e.g. `verify-fail` for a

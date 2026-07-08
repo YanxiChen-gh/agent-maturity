@@ -1,6 +1,6 @@
 ---
 name: harvest-interventions
-description: Reconstruct the agent-maturity intervention log from artifacts (Claude Code session transcripts, git history, PR review cycles) instead of logging by hand. Use only when explicitly invoked (e.g. "/harvest-interventions", "backfill my intervention log", "harvest interventions for the last 2 weeks", "populate the maturity log automatically"). Pairs with /maturity-review — run this first to give it data.
+description: Reconstruct the agent-maturity intervention log from coding-agent transcripts, git history, and PR review cycles instead of logging by hand. Supports Claude Code, Codex, and OpenCode. Use only when explicitly invoked (e.g. "/harvest-interventions", "backfill my intervention log", "harvest interventions for the last 2 weeks", "populate the maturity log automatically"). Pairs with /maturity-review — run this first to give it data.
 disable-model-invocation: true
 ---
 
@@ -34,17 +34,19 @@ When invoked with `--session <id>` (or `--session current`):
 
 - **`current`** resolves to the session id on the `[scope-gate] (session: <id>)` line the
   UserPromptSubmit hook injects into context.
-- Locate that session's transcript by filename (the id is the `*.jsonl` basename) in BOTH
-  `~/.claude/projects/*/` and `$AGENT_MATURITY_DATA_DIR/evidence/*/projects/*/`. Reading it at
-  harvest time naturally includes every turn added *after* any earlier capture/flag — the file
-  is append-only and keeps growing, so "capture the rest of the thread" needs nothing more than
-  reading it now.
+- Locate the session through each supported client's public artifact:
+  - Claude Code: the matching `~/.claude/projects/*/<id>.jsonl` or
+    `$AGENT_MATURITY_DATA_DIR/evidence/*/projects/*/<id>.jsonl` file.
+  - Codex: the rollout JSONL whose filename contains the id under `~/.codex/sessions/`.
+  - OpenCode: `opencode export <id> --sanitize`, written to a temporary JSON file for mining.
+  Reading/exporting at harvest time includes turns added after an earlier capture.
 - **Skip** the repo+window default and steps 0b/0c (no cross-env sweep, no brief aggregation —
   this is one conversation, fresh). Still run 0a (provision the data store).
 - Dispatch the step-1 mining subagent against **only that one transcript file**, with the same
   classification rules (source A). Sources B/C (git, PRs) don't apply to a single session.
 - Run the same human-confirm gate (step 2+) and write to the same `interventions.jsonl`.
-- The mined session id is already stamped in each entry's `evidence` (`transcript <id>#turnN`);
+- The client and session id are stamped in each entry's `evidence`
+  (`<client> transcript <id>#turnN`);
   this lets a later batch run skip sessions already harvested this way and avoid double-proposing.
 
 ## Procedure
@@ -59,10 +61,11 @@ unlike at env-provisioning time). Run this first — it's a fast no-op once set 
 If it reports gh isn't authenticated or the repo is inaccessible, stop and tell the user
 (can't read/write the log without it).
 
-### 0b. Refresh cross-env evidence if stale
+### 0b. Refresh cross-env Claude evidence if stale
 
-Work happens across many ephemeral Ona envs, so the local `~/.claude/projects/` is only a
-slice. Before mining, check the evidence freshness:
+Work happens across many ephemeral Ona envs, so the local Claude transcript directory is only
+a slice. Before mining, check the evidence freshness. Codex and OpenCode local artifacts are
+read directly in step 1; the current Ona collector only sweeps Claude's remote artifacts.
 
 - Read `$AGENT_MATURITY_DATA_DIR/evidence/_manifest.txt` → `collected_at`.
 - **Run `scripts/collect-ona-evidence.sh` (running-only) if** the manifest is missing, older
@@ -105,19 +108,21 @@ the repo, the window, and these instructions verbatim:
 > Mine three sources for human interventions on AI-agent coding work in **<repo>** over **<window>**.
 > Return ONLY a JSON object — no prose. Be conservative; when unsure, omit.
 >
-> **A. Claude Code session transcripts** (richest source).
-> Read BOTH locations:
->   - this env's live transcripts: `~/.claude/projects/`
->   - transcripts pulled from ALL Ona envs: `$AGENT_MATURITY_DATA_DIR/evidence/*/projects/`
->     (populated by step 0's collector run, covering work across ephemeral remote envs).
-> For each, include the repo's main dir AND any worktree dirs (e.g. `-workspaces-<repo>` and
-> `-workspaces-<repo>--claude-worktrees-*`). Parse the `*.jsonl` files modified within the window.
-> The same session may appear in more than one location — de-dupe by session filename (the UUID). A **human turn** is a line with
-> `type=="user"` whose `message.content` is a plain string, or a list containing `text`
-> blocks. **Exclude** turns whose content is `tool_result`, or that are clearly
-> harness-injected (wrapped in `<command-name>`, `<command-message>`, `<system-reminder>`,
-> `<local-command-stdout>`, or caveat/skill boot text). Walk turns in order and classify each
-> genuine human turn *relative to the preceding assistant turn*:
+> **A. Coding-agent transcripts** (richest source). Mine all available supported clients:
+>   - **Claude Code:** `~/.claude/projects/` plus
+>     `$AGENT_MATURITY_DATA_DIR/evidence/*/projects/`. Include the repo's main directory and
+>     worktrees. Parse `*.jsonl` files modified within the window. A human turn has
+>     `type=="user"` and textual `message.content`.
+>   - **Codex:** rollout `*.jsonl` files under `~/.codex/sessions/` modified within the window.
+>     Use the rollout's role/type fields to identify genuine user and assistant messages; the
+>     format is not a stable API, so inspect fields rather than assuming Claude's schema.
+>   - **OpenCode:** run `opencode session list --format json`, select sessions for this repo and
+>     window, then run `opencode export <session-id> --sanitize` for each selected session into
+>     a temporary directory. Mine the exported message roles and text. Never query OpenCode's
+>     private SQLite schema. Remove the temporary exports after mining.
+> De-duplicate by `<client>:<session-id>`. Exclude tool results and harness-injected context
+> (command wrappers, system reminders, scope-gate text, and skill boot text). Walk turns in
+> order and classify each genuine human turn *relative to the preceding assistant turn*:
 >   - **task** — a fresh task statement / new feature ask → NOT an intervention; count it
 >     toward the task denominator only.
 >   - **correction** (Trust) — points out a bug, says it's wrong, asks to redo/fix/revert
@@ -126,8 +131,9 @@ the repo, the window, and these instructions verbatim:
 >     an agent question with new constraints, "no, I meant X", "use the GraphQL resolver not REST".
 >   - **unblock** (Babysit) — restarts a stalled/looping agent, resolves an error or merge
 >     conflict for it, "you're stuck, try Y", "continue".
-> Also COUNT assistant `AskUserQuestion` tool calls (agent-initiated questions) — report the
-> count separately; these are a positive Spec signal, not interventions.
+> Also COUNT explicit agent-initiated questions (including Claude `AskUserQuestion` calls and
+> equivalent Codex/OpenCode question tools or clear assistant questions) — report the count
+> separately; these are a positive Spec signal, not interventions.
 >
 > **Tag each proposal** with 0+ slugs from the canonical vocabulary in
 > `$AGENT_MATURITY_HOME/tags.md` (READ THAT FILE FIRST — it is the single source of
@@ -171,8 +177,9 @@ the repo, the window, and these instructions verbatim:
 >   "agent_initiated_questions": <int>,
 >   "proposals": [
 >     {"date":"YYYY-MM-DD","type":"correction|clarification|unblock",
->      "note":"<short, what happened>","source":"auto","tags":["<slug>", ...],
->      "evidence":"transcript <id>#turn<N> | commit <sha> | PR #<n>","confidence":"high|med|low"}
+>      "note":"<short, what happened>","source":"auto","client":"claude|codex|opencode|git|github",
+>      "model":"<model slug when present in the artifact>","tags":["<slug>", ...],
+>      "evidence":"<client> transcript <id>#turn<N> | commit <sha> | PR #<n>","confidence":"high|med|low"}
 >   ],
 >   "recurring_imperatives": [
 >     {"gloss":"<the instruction the human keeps issuing>","type":"correction|clarification|unblock",
@@ -204,8 +211,9 @@ for the lazy path. If they prune, take the list of indices to drop.
 ### 3. Write
 
 Append the confirmed proposals to `interventions.jsonl` (a symlink into the private repo), one
-compact JSON line each, preserving `source:"auto"`, `evidence`, `confidence`, and `tags` (write
-`tags` as a JSON array; omit the key or use `[]` when none). Don't rewrite or dedup existing lines.
+compact JSON line each, preserving `source:"auto"`, `client`, `model` when known, `evidence`,
+`confidence`, and `tags` (write `tags` as a JSON array; omit the key or use `[]` when none).
+Don't rewrite or dedup existing lines.
 If the user adopted any `new_tags`, add them to `$AGENT_MATURITY_HOME/tags.md` under the
 right group before writing. Report how many were written and the resulting per-type **and per-tag**
 totals.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # PreToolUse(Edit|Write) hard backstop for the scope gate.
-# Exit 0 = allow; exit 2 = block (Claude Code feeds stderr back to the agent).
+# Exit 0 = allow; exit 2 = block with stderr returned to the agent.
 # Fails OPEN on any error — a broken gate must never wedge editing.
 set -uo pipefail
 
@@ -16,11 +16,34 @@ command -v jq >/dev/null 2>&1 || { sg_log "fail-open: jq missing"; exit 0; }
 
 path="$(sg_json_field "$input" '.tool_input.file_path')"
 session="$(sg_json_field "$input" '.session_id')"
+cwd="$(sg_json_field "$input" '.cwd')"
 
 # Floored, cheap-to-be-wrong paths (incl. the brief writes themselves) → allow.
 if [ -n "$path" ] && sg_is_floored_path "$path"; then
   sg_log "floored allow: $path"
   exit 0
+fi
+
+# Codex and OpenCode apply_patch calls carry one command containing every target path.
+# Allow only when all parsed targets are floored; an unparsed patch remains gated.
+if [ -z "$path" ]; then
+  patch_path=""
+  found_patch_path=0
+  all_floored=1
+  while IFS= read -r patch_path; do
+    [ -n "$patch_path" ] || continue
+    found_patch_path=1
+    case "$patch_path" in /*) ;; *) patch_path="${cwd:-$PWD}/$patch_path" ;; esac
+    if ! sg_is_floored_path "$patch_path"; then
+      all_floored=0
+      path="$patch_path"
+      break
+    fi
+  done < <(sg_patch_paths "$input")
+  if [ "$found_patch_path" = 1 ] && [ "$all_floored" = 1 ]; then
+    sg_log "floored allow: patch targets"
+    exit 0
+  fi
 fi
 
 # Can't identify the task → fail open (don't block on malformed/partial input).

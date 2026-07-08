@@ -31,12 +31,15 @@ test_lib(){
   ( SCOPE_GATE=on;  sg_disabled ) && no "sg_disabled false when on" || ok "sg_disabled false when on"
 
   ( CLAUDE_JOB_DIR=/x; sg_is_autonomous ) && ok "autonomous when CLAUDE_JOB_DIR set" || no "autonomous when CLAUDE_JOB_DIR set"
-  ( unset CLAUDE_JOB_DIR; sg_is_autonomous ) && no "interactive when CLAUDE_JOB_DIR unset" || ok "interactive when CLAUDE_JOB_DIR unset"
+  ( AGENT_MATURITY_AUTONOMOUS=1; sg_is_autonomous ) && ok "autonomous with generic override" || no "autonomous with generic override"
+  ( unset CLAUDE_JOB_DIR AGENT_MATURITY_AUTONOMOUS; sg_is_autonomous ) && no "interactive without autonomous markers" || ok "interactive without autonomous markers"
 
   assert_eq "json_field extracts file_path" "/a/b.ts" \
     "$(sg_json_field '{"tool_input":{"file_path":"/a/b.ts"}}' '.tool_input.file_path')"
   assert_eq "json_field empty on missing" "" \
     "$(sg_json_field '{"x":1}' '.tool_input.file_path')"
+  assert_eq "patch paths extract all targets" $'/a/one.md\nsrc/two.ts' \
+    "$(sg_patch_paths '{"tool_input":{"command":"*** Begin Patch\n*** Add File: /a/one.md\n*** Update File: src/two.ts\n*** End Patch"}}')"
 
   sg_is_floored_path "/r/README.md" && ok "floor: .md" || no "floor: .md"
   sg_is_floored_path "$AGENT_MATURITY_DATA_DIR/briefs/x.json" && ok "floor: data dir" || no "floor: data dir"
@@ -81,6 +84,31 @@ test_pretooluse(){
 
   echo '{"session_id":"S1","tool_input":{"file_path":"/tmp/pr-body.ZZ"}}' | "$PRE" >/dev/null 2>&1
   assert_eq "allows /tmp temp write (floor fix)" 0 "$?"
+
+  echo '{"session_id":"Codex1","tool_name":"apply_patch","tool_input":{"command":"*** Begin Patch"}}' | "$PRE" >/dev/null 2>&1
+  assert_eq "blocks Codex apply_patch without brief" 2 "$?"
+
+  local payload
+  payload="$(jq -n --arg session CodexBrief --arg cwd "$repo" --arg command \
+    "*** Begin Patch
+*** Add File: $AGENT_MATURITY_DATA_DIR/briefs/CodexBrief.md
+brief
+*** End Patch" \
+    '{session_id:$session,cwd:$cwd,tool_name:"apply_patch",tool_input:{command:$command}}')"
+  printf '%s' "$payload" | "$PRE" >/dev/null 2>&1
+  assert_eq "allows Codex apply_patch for brief" 0 "$?"
+
+  payload="$(jq -n --arg session CodexMixed --arg cwd "$repo" --arg command \
+    "*** Begin Patch
+*** Add File: $AGENT_MATURITY_DATA_DIR/briefs/CodexMixed.md
+brief
+*** Update File: src/app.ts
+-old
++new
+*** End Patch" \
+    '{session_id:$session,cwd:$cwd,tool_name:"apply_patch",tool_input:{command:$command}}')"
+  printf '%s' "$payload" | "$PRE" >/dev/null 2>&1
+  assert_eq "blocks Codex mixed apply_patch without brief" 2 "$?"
 
   touch "$AGENT_MATURITY_DATA_DIR/briefs/2026-06-15-S1.json"
   echo "{\"session_id\":\"S1\",\"tool_input\":{\"file_path\":\"$code\"}}" | "$PRE" >/dev/null 2>&1
@@ -134,6 +162,19 @@ JSON
   assert_eq "userpromptsubmit registered once" "1" \
     "$(jq '[.hooks.UserPromptSubmit[].hooks[]|select(.command|test("scope-gate-userpromptsubmit"))]|length' "$cfg")"
   assert_eq "theme preserved" '"dark"' "$(jq '.theme' "$cfg")"
+
+  local codex_cfg="$tmp/hooks.json"
+  cat >"$codex_cfg" <<'JSON'
+{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"existing-session-hook"}]}]}}
+JSON
+  bash "$ROOT/scripts/scope-gate-register.sh" "$codex_cfg" >/dev/null 2>&1
+  bash "$ROOT/scripts/scope-gate-register.sh" "$codex_cfg" >/dev/null 2>&1
+  assert_eq "Codex existing hook preserved" "1" \
+    "$(jq '[.hooks.SessionStart[].hooks[]|select(.command=="existing-session-hook")]|length' "$codex_cfg")"
+  assert_eq "Codex pretooluse registered once" "1" \
+    "$(jq '[.hooks.PreToolUse[].hooks[]|select(.command|test("scope-gate-pretooluse"))]|length' "$codex_cfg")"
+  assert_eq "Codex userpromptsubmit registered once" "1" \
+    "$(jq '[.hooks.UserPromptSubmit[].hooks[]|select(.command|test("scope-gate-userpromptsubmit"))]|length' "$codex_cfg")"
   rm -rf "$tmp"
 }
 test_register

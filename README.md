@@ -58,9 +58,15 @@ Then open a new shell (or `source ~/.agent-maturity.env`) and:
 li clarification "use the resolver, not REST" wrong-approach
 ```
 
-`install.sh` (run by `bootstrap.sh`, or directly) symlinks the skills into `~/.claude/skills`,
-writes `~/.agent-maturity.env`, registers the scope-gate hooks, and ensures your data repo
-exists. It's idempotent; `--dry-run` shows what it would do; `--no-hooks` skips hooks.
+`install.sh` (run by `bootstrap.sh`, or directly) symlinks the skills into Claude Code's
+`~/.claude/skills` and the shared `~/.agents/skills` path used by Codex and OpenCode. It writes
+`~/.agent-maturity.env`, registers the scope-gate hooks for Claude Code and Codex, and ensures
+your data repo exists. Codex asks you to trust changed user hooks once through `/hooks`.
+It's idempotent; `--dry-run` shows what it would do; `--no-hooks` skips hooks.
+
+OpenCode discovers the same skills from `~/.agents/skills`. Its hook API differs, so the
+[Dotfiles](https://github.com/YanxiChen-gh/Dotfiles) integration installs an OpenCode plugin
+that adapts `tool.execute.before` and prompt context to the engine's scope-gate scripts.
 
 ### Put it in your dotfiles
 
@@ -75,7 +81,9 @@ curl -fsSL https://raw.githubusercontent.com/YanxiChen-gh/agent-maturity/main/bo
 
 ## Notes & limitations
 
-- **Claude Code first.** Skills + hooks target Claude Code. The scripts are portable bash; the model is tool-agnostic.
-- **The Ona evidence collector is platform-specific** (sweeps Ona dev environments). It's optional — the rest works without it.
+- **Three supported clients.** Skills work in Claude Code, Codex, and OpenCode. Claude Code and
+  Codex use their native lifecycle hooks; OpenCode needs the Dotfiles plugin adapter described
+  above. The scripts and scoring model remain model-agnostic.
+- **The Ona evidence collector is platform-specific** and currently sweeps only Claude transcripts from remote environments. Codex and OpenCode sessions are harvested locally. The collector is optional; the rest works without it.
 - **Harvest is approximate.** It reconstructs from artifacts and mis-buckets some; the confirm step is the accuracy gate. `li` is the escape hatch for things artifacts can't see.
 - **No autonomy *scoring* tool exists off the shelf** — backends like Langfuse only move where the raw log lives. The rubric + meta-eval are the point, and they're here.

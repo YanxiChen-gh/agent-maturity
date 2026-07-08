@@ -9,12 +9,21 @@ SG_LOG="$SG_DATA_DIR/scope-gate.log"
 # Kill switch: true (0) when the gate is disabled.
 sg_disabled() { [ "${SCOPE_GATE:-on}" = "off" ]; }
 
-# Autonomous mode: background jobs set CLAUDE_JOB_DIR.
-sg_is_autonomous() { [ -n "${CLAUDE_JOB_DIR:-}" ]; }
+# Autonomous mode: clients can set the generic override; Claude background jobs expose their own.
+sg_is_autonomous() { [ "${AGENT_MATURITY_AUTONOMOUS:-0}" = 1 ] || [ -n "${CLAUDE_JOB_DIR:-}" ]; }
 
 # Extract a jq path from JSON; empty string on absence/error.
 sg_json_field() {  # $1=json $2=jq-path
   printf '%s' "$1" | jq -r "$2 // empty" 2>/dev/null
+}
+
+# Extract every target path from an apply_patch command.
+sg_patch_paths() {  # $1=json
+  printf '%s' "$1" | jq -r '
+    .tool_input.command // empty
+    | split("\n")[]
+    | try capture("^\\*\\*\\* (?:(?:Add|Update|Delete) File|Move to): (?<path>.+)$").path catch empty
+  ' 2>/dev/null
 }
 
 # Floored (cheap-to-be-wrong) path → allow without a brief: docs, the gate's own
