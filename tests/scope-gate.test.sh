@@ -85,6 +85,13 @@ test_pretooluse(){
   echo '{"session_id":"S1","tool_input":{"file_path":"/tmp/pr-body.ZZ"}}' | "$PRE" >/dev/null 2>&1
   assert_eq "allows /tmp temp write (floor fix)" 0 "$?"
 
+  echo '{"session_id":"S1","tool_input":{"file_path":"/tmp/agent-maturity-scope-S1.html"}}' | "$PRE" >/dev/null 2>&1
+  assert_eq "allows pre-brief Lavish page in /tmp" 0 "$?"
+
+  mkdir -p "$repo/.lavish"
+  echo "{\"session_id\":\"S1\",\"tool_input\":{\"file_path\":\"$repo/.lavish/scope-S1.html\"}}" | "$PRE" >/dev/null 2>&1
+  assert_eq "blocks repo-local Lavish page before brief" 2 "$?"
+
   echo '{"session_id":"Codex1","tool_name":"apply_patch","tool_input":{"command":"*** Begin Patch"}}' | "$PRE" >/dev/null 2>&1
   assert_eq "blocks Codex apply_patch without brief" 2 "$?"
 
@@ -145,7 +152,37 @@ test_userpromptsubmit(){
 }
 test_userpromptsubmit
 
-# --- Task 5: settings.json hook registration (idempotent, non-clobbering) ---
+# --- Task 5: skill keeps the review contract load-bearing ---
+test_skill_contract(){
+  local skill="$ROOT/skills/scope-gate/SKILL.md"
+  grep -q 'exactly one clean-context scope critic' "$skill" \
+    && ok "skill requires one scope critic" || no "skill requires one scope critic"
+  grep -q 'read-only general-purpose' "$skill" \
+    && ok "scope critic is read-only" || no "scope critic is read-only"
+  grep -q 'limited to three high-confidence findings' "$skill" \
+    && ok "scope critic findings are capped" || no "scope critic findings are capped"
+  grep -q 'npx -y lavish-axi <html-file>' "$skill" \
+    && ok "skill opens a Lavish review" || no "skill opens a Lavish review"
+  grep -q '/tmp/agent-maturity-scope-' "$skill" \
+    && ok "Lavish review uses a pre-gate temp path" || no "Lavish review uses a pre-gate temp path"
+  local feedback_line brief_line
+  feedback_line="$(grep -n 'If feedback requests changes' "$skill" | cut -d: -f1)"
+  brief_line="$(grep -n '^7\. \*\*Write the canonical brief' "$skill" | cut -d: -f1)"
+  if [ -n "$feedback_line" ] && [ -n "$brief_line" ] && [ "$feedback_line" -lt "$brief_line" ]; then
+    ok "feedback precedes canonical brief"
+  else
+    no "feedback precedes canonical brief"
+  fi
+  grep -q 'after interactive approval or immediately after the' "$skill" \
+    && ok "Markdown handles interactive and autonomous modes" || no "Markdown handles interactive and autonomous modes"
+  grep -q 'do not create a Lavish page and do not wait' "$skill" \
+    && ok "autonomous mode stays non-interactive" || no "autonomous mode stays non-interactive"
+  grep -q 'same compact scope in chat' "$skill" \
+    && ok "Lavish failure has a text fallback" || no "Lavish failure has a text fallback"
+}
+test_skill_contract
+
+# --- Task 6: settings.json hook registration (idempotent, non-clobbering) ---
 test_register(){
   local tmp; tmp="$(mktemp -d)"
   local cfg="$tmp/settings.json"

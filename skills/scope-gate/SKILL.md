@@ -1,14 +1,16 @@
 ---
 name: scope-gate
-description: Produce a pre-execution scoping brief before writing code on a non-trivial task — restate the task with pass-to-pass acceptance checks, propose a PR-decomposition when multi-part, and batch genuine scope questions up front. Invoked by the agent when it self-classifies a task as non-trivial, or when the scope-gate PreToolUse hook blocks an edit. A Spec L2→L3/L4 lever in the agent-maturity system.
+description: Produce and review a pre-execution scope before writing code on a non-trivial task. Declares the approach, runs one clean-context critic, and presents interactive scopes in a lightweight Lavish approval page. Invoked when the agent self-classifies work as non-trivial or the scope-gate hook blocks an edit.
 ---
 
 # Scope Gate
 
 Force scoping **before** code on non-trivial tasks, to cut the scope-redirection
 clarifications that otherwise land after an approach is already chosen. Produces a
-**brief** that is both the gate marker (the PreToolUse hook checks for it) and the
-measurement artifact (`/harvest-interventions` reads it).
+canonical Markdown **brief** that is both the gate marker (the PreToolUse hook checks
+for it) and the measurement artifact (`/harvest-interventions` reads it). Interactive
+tasks use a lightweight Lavish page to review that scope; the HTML is an ephemeral
+presentation layer, not another source of truth.
 
 **This is a Spec L2→L3/L4 lever. Retirement trigger:** when agent-initiated
 scope-question precision is high AND clarifications/PR is flat, this gate is no longer
@@ -41,7 +43,7 @@ a one-line `trivial_reason`, then proceed to code. Do not over-scope trivial wor
    This creates `$AGENT_MATURITY_DATA_DIR/briefs` even if provisioning fails. If it
    reports gh isn't authenticated / repo inaccessible, **do not stop** — warn the user
    that the brief won't sync until that's resolved, then still write the brief locally
-   (step 6) so the gate is satisfied and work isn't wedged. It will sync on a later run.
+   (step 7) so the gate is satisfied and work isn't wedged. It will sync on a later run.
 
 2. **Restate** the task in one line + **pass-to-pass acceptance checks** — concrete,
    checkable conditions that define done.
@@ -60,19 +62,56 @@ a one-line `trivial_reason`, then proceed to code. Do not over-scope trivial wor
    (precision over volume). For each, either get an answer or record an explicit
    assumption.
 
-5. **Approval (mode-dependent):**
-   - **Interactive** (default): present the brief — **including the
-     approach declaration** — ask the scope questions, and **wait for approval** before
-     writing code. The approach lines are the primary thing to confirm: divergence caught
-     here costs a sentence, not a rewrite.
-   - **Autonomous** (`$AGENT_MATURITY_AUTONOMOUS=1`, or a Claude background job with
-     `$CLAUDE_JOB_DIR` set): do **not** wait. Record each open
-     question as an `assumed` resolution with its assumption, proceed to code, and
-     **surface the approach declaration and assumptions in the PR description** for
-     async review.
+5. **Run exactly one clean-context scope critic.** Dispatch a read-only general-purpose
+   subagent with the task, acceptance checks, approach, decomposition, and questions. Let
+   it inspect relevant repository context, but do not let it edit or implement. Its output
+   is limited to three high-confidence findings in this shape:
 
-6. **Write the brief** with the Write tool (this path is floored, so the hook allows
-   it) to:
+   ```text
+   Decision at risk: <the proposed choice>
+   Evidence: <specific repository fact or external constraint>
+   Alternative or question: <one actionable fork>
+   ```
+
+   The critic returns `No findings` when there is no concrete fork. It does not rewrite the
+   scope, produce a full plan, add generic risks, or review wording. Do not run a second
+   critic by default. If subagents are unavailable, state that the critic was skipped and
+   continue; this quality check must not wedge the gate.
+
+6. **Approval (mode-dependent):**
+   - **Interactive** (default): use Lavish when available. Load the `lavish` skill and read
+     its `input` playbook; read `comparison` only when there is a genuine choice between
+     alternatives. Do not use the full `plan` playbook for an ordinary scope review.
+     Generate `/tmp/agent-maturity-scope-<session_id>.html` as a compact decision
+     surface containing:
+     - the outcome in one sentence;
+     - concrete acceptance checks;
+     - each approach decision with its rationale and any rejected alternative;
+     - the critic's findings, visually distinguished from accepted decisions;
+     - PR decomposition only when the work is genuinely multi-part;
+     - unresolved questions or assumptions; and
+     - one explicit approval control that sends `Scope approved. Write the canonical brief
+       and proceed.` back to the agent.
+
+     Keep the page materially lighter than an implementation plan. Prefer a one-screen,
+     scan-friendly layout; omit command lists, file-by-file steps, and resolved questions.
+     Users can annotate any element or selected text for detail. Run
+     `npx -y lavish-axi <html-file>`, resolve its local URL through the host's configured
+     browser-exposure helper when one exists, give the user the resulting URL, then poll
+     with `npx -y lavish-axi poll <html-file>` following the Lavish skill's long-poll guidance.
+     If feedback requests changes, apply it to the scope and page, then poll again. If the
+     poll returns explicit approval, stop polling and continue. **Wait for explicit
+     approval** before writing code. If Lavish or `npx` is unavailable, fall back to
+     presenting the same compact scope in chat and ask once for approval.
+   - **Autonomous** (`$AGENT_MATURITY_AUTONOMOUS=1`, or a Claude background job with
+     `$CLAUDE_JOB_DIR` set): do not create a Lavish page and do not wait. Resolve critic
+     findings conservatively, record each open question as an `assumed` resolution, proceed
+     to code, and surface the approach declaration and assumptions in the PR description
+     for async review.
+
+7. **Write the canonical brief** after interactive approval or immediately after the
+   autonomous critique. Use the Write tool (this path is floored, so the hook allows it)
+   to write:
 
        $AGENT_MATURITY_DATA_DIR/briefs/<YYYY-MM-DD>-<session_id>.md
 
@@ -113,16 +152,18 @@ a one-line `trivial_reason`, then proceed to code. Do not over-scope trivial wor
    - <blocker> — answered: <answer> | assumed: <assumption>
    ```
 
-7. **Sync** so the brief persists off the ephemeral env:
+8. **Sync** so the brief persists off the ephemeral env:
 
        bash $AGENT_MATURITY_HOME/scripts/sync-maturity-data.sh "scope-gate: brief <session_id>"
 
-8. **Proceed to code.** Retry the edit that was blocked (the hook now finds the brief).
+9. **Proceed to code.** Retry the edit that was blocked (the hook now finds the brief).
 
 ## Notes
 
-- The brief is intentionally lightweight — delegate deep design to
-  `superpowers:brainstorming` and deep planning to `superpowers:writing-plans` when a
-  task warrants them. This skill is the *gate*, not a replacement for those.
+- The scope and its Lavish page are intentionally lightweight. If review comments expose
+  unresolved architecture, sequencing, or migration work, escalate to the client's full
+  planning workflow instead of expanding the scope page into a plan.
+- Accepted decisions belong in the Markdown brief. End the Lavish session and delete its
+  temporary HTML file when approval is complete.
 - One brief per session covers the session (v1). If a genuinely new non-trivial task
   begins mid-session, re-run this skill to write a fresh brief.
