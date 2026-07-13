@@ -165,6 +165,16 @@ test_skill_contract(){
     && ok "skill opens a Lavish review" || no "skill opens a Lavish review"
   grep -q '/tmp/agent-maturity-scope-' "$skill" \
     && ok "Lavish review uses a pre-gate temp path" || no "Lavish review uses a pre-gate temp path"
+  grep -q 'native `question` tool' "$skill" \
+    && ok "native question tool owns interactive wait" || no "native question tool owns interactive wait"
+  grep -q 'Do not start a foreground Lavish poll first' "$skill" \
+    && ok "native flow avoids foreground poll" || no "native flow avoids foreground poll"
+  grep -q '\*\*Approve scope\*\*' "$skill" \
+    && ok "native flow supports approval" || no "native flow supports approval"
+  grep -q '\*\*Feedback submitted\*\*' "$skill" \
+    && ok "native flow supports queued feedback" || no "native flow supports queued feedback"
+  grep -q 'only after this response' "$skill" \
+    && ok "feedback poll follows native response" || no "feedback poll follows native response"
   local feedback_line brief_line
   feedback_line="$(grep -n 'If feedback requests changes' "$skill" | cut -d: -f1)"
   brief_line="$(grep -n '^7\. \*\*Write the canonical brief' "$skill" | cut -d: -f1)"

@@ -89,20 +89,33 @@ a one-line `trivial_reason`, then proceed to code. Do not over-scope trivial wor
      - each approach decision with its rationale and any rejected alternative;
      - the critic's findings, visually distinguished from accepted decisions;
      - PR decomposition only when the work is genuinely multi-part;
-     - unresolved questions or assumptions; and
-     - one explicit approval control that sends `Scope approved. Write the canonical brief
-       and proceed.` back to the agent.
+     - unresolved questions or assumptions.
 
      Keep the page materially lighter than an implementation plan. Prefer a one-screen,
      scan-friendly layout; omit command lists, file-by-file steps, and resolved questions.
      Users can annotate any element or selected text for detail. Run
      `npx -y lavish-axi <html-file>`, resolve its local URL through the host's configured
-     browser-exposure helper when one exists, give the user the resulting URL, then poll
-     with `npx -y lavish-axi poll <html-file>` following the Lavish skill's long-poll guidance.
-     If feedback requests changes, apply it to the scope and page, then poll again. If the
-     poll returns explicit approval, stop polling and continue. **Wait for explicit
-     approval** before writing code. If Lavish or `npx` is unavailable, fall back to
-     presenting the same compact scope in chat and ask once for approval.
+     browser-exposure helper when one exists, and give the user the resulting URL.
+
+     When a native `question` tool is available, use it as the explicit input boundary.
+     Do not start a foreground Lavish poll first. Ask one question containing the review URL
+     with these choices:
+     - **Approve scope**: treat this native response as explicit approval and continue without
+       polling. Do not ask the user to approve in both places.
+     - **Feedback submitted**: run `npx -y lavish-axi poll <html-file>` only after this response,
+       so already-queued annotations return immediately. Apply the feedback to the scope and
+       page, then ask the same native question again.
+
+     This keeps clients such as OpenCode in their input-required state, where their normal
+     attention notifications work, instead of appearing to work indefinitely inside a silent
+     external process. After approval, end the Lavish session.
+
+     When no native question tool is available, include one explicit approval control in the
+     page that sends `Scope approved. Write the canonical brief and proceed.`, then follow the
+     Lavish skill's long-poll guidance. If feedback requests changes, apply it to the scope and
+     page, then poll again. If the poll returns explicit approval, stop polling and continue.
+     **Wait for explicit approval** before writing code. If Lavish or `npx` is unavailable,
+     fall back to presenting the same compact scope in chat and ask once for approval.
    - **Autonomous** (`$AGENT_MATURITY_AUTONOMOUS=1`, or a Claude background job with
      `$CLAUDE_JOB_DIR` set): do not create a Lavish page and do not wait. Resolve critic
      findings conservatively, record each open question as an `assumed` resolution, proceed
